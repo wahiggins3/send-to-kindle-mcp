@@ -117,11 +117,31 @@ The document will appear in your Kindle library within a few minutes.
 
 ## Troubleshooting
 
+### Viewing Error Logs
+
+The server logs detailed information to help debug issues. To view logs in Claude Desktop:
+
+**macOS**: 
+- Open Console.app (Applications → Utilities → Console)
+- Filter by "Claude" or search for "send-to-kindle"
+- Look for log messages with timestamps
+
+**Windows**:
+- Check the Claude Desktop logs in `%APPDATA%\Claude\logs\`
+- Or view logs in the Windows Event Viewer
+
+The logs will show:
+- Connection attempts to SMTP servers
+- Authentication steps and errors
+- Detailed error messages with troubleshooting hints
+- Configuration validation issues
+
 ### Email not sending
 
 - Verify your SMTP credentials are correct
 - For Gmail, ensure you're using an App Password, not your regular password
 - Check that less secure app access is not required (modern Gmail uses App Passwords instead)
+- Check the logs (see above) for specific error messages
 
 ### Document not appearing on Kindle
 

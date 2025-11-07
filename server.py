@@ -8,7 +8,9 @@ and sends them to Kindle e-readers via email.
 
 import os
 import smtplib
+import sys
 import tempfile
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
@@ -20,6 +22,14 @@ from dotenv import load_dotenv
 from ebooklib import epub
 import markdown
 from fastmcp import FastMCP
+
+# Configure logging to stderr (visible in Claude Desktop logs)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stderr
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -156,6 +166,9 @@ def send_email_with_attachment(
         smtp_password: SMTP password
         from_email: Sender email address
     """
+    logger.info(f"Preparing to send email to {to_email} via {smtp_host}:{smtp_port}")
+    logger.debug(f"SMTP user: {smtp_user}, From: {from_email}")
+    
     # Create message
     msg = MIMEMultipart()
     msg['From'] = from_email
@@ -172,11 +185,45 @@ def send_email_with_attachment(
     part.add_header('Content-Disposition', f'attachment; filename={attachment_name}')
     msg.attach(part)
 
-    # Send email
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
+    # Send email with detailed error handling
+    try:
+        logger.info(f"Connecting to SMTP server {smtp_host}:{smtp_port}")
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            logger.info("Starting TLS encryption")
+            server.starttls()
+            
+            logger.info(f"Attempting to authenticate as {smtp_user}")
+            try:
+                server.login(smtp_user, smtp_password)
+                logger.info("Authentication successful")
+            except smtplib.SMTPAuthenticationError as e:
+                logger.error(f"SMTP Authentication failed: {e}")
+                logger.error("Common causes:")
+                logger.error("  - Using regular password instead of App Password (for Gmail)")
+                logger.error("  - App Password not generated or incorrect")
+                logger.error("  - 2FA not enabled (required for App Passwords)")
+                logger.error("  - Username/email address incorrect")
+                raise
+            except smtplib.SMTPException as e:
+                logger.error(f"SMTP error during login: {e}")
+                raise
+            
+            logger.info(f"Sending email with attachment '{attachment_name}' ({len(attachment_data)} bytes)")
+            server.send_message(msg)
+            logger.info("Email sent successfully")
+            
+    except smtplib.SMTPConnectError as e:
+        logger.error(f"Failed to connect to SMTP server: {e}")
+        raise Exception(f"Could not connect to {smtp_host}:{smtp_port}. Check your SMTP_HOST and SMTP_PORT settings.")
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"Authentication failed: {e}")
+        raise Exception(f"SMTP authentication failed. For Gmail, ensure you're using an App Password, not your regular password. Error: {e}")
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error: {e}")
+        raise Exception(f"SMTP error: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error sending email: {e}", exc_info=True)
+        raise
 
 
 @mcp.tool()
@@ -201,6 +248,8 @@ def send_to_kindle(
         A success message or error description
     """
     try:
+        logger.info("Starting send_to_kindle request")
+        
         # Get configuration from environment
         smtp_host = os.getenv("SMTP_HOST")
         smtp_port_str = os.getenv("SMTP_PORT", "587")
@@ -208,6 +257,8 @@ def send_to_kindle(
         smtp_password = os.getenv("SMTP_PASSWORD")
         kindle_email = os.getenv("KINDLE_EMAIL")
         from_email = os.getenv("FROM_EMAIL", smtp_user)
+
+        logger.debug(f"Configuration loaded - Host: {smtp_host}, Port: {smtp_port_str}, User: {smtp_user}, Kindle: {kindle_email}")
 
         # Validate configuration
         if not all([smtp_host, smtp_user, smtp_password, kindle_email]):
@@ -220,16 +271,22 @@ def send_to_kindle(
                 missing.append("SMTP_PASSWORD")
             if not kindle_email:
                 missing.append("KINDLE_EMAIL")
-            return f"Error: Missing email configuration. Please set: {', '.join(missing)}"
+            error_msg = f"Error: Missing email configuration. Please set: {', '.join(missing)}"
+            logger.error(error_msg)
+            return error_msg
 
         # Validate and convert port
         try:
             smtp_port = int(smtp_port_str)
         except ValueError:
-            return f"Error: Invalid SMTP_PORT value '{smtp_port_str}'. Must be a number."
+            error_msg = f"Error: Invalid SMTP_PORT value '{smtp_port_str}'. Must be a number."
+            logger.error(error_msg)
+            return error_msg
 
         # Create EPUB
+        logger.info(f"Creating EPUB for '{title}' (content length: {len(content)} chars)")
         epub_data = create_epub(title, content, author)
+        logger.info(f"EPUB created successfully ({len(epub_data)} bytes)")
 
         # Prepare email
         safe_filename = f"{title.replace(' ', '_')}.epub"
@@ -250,10 +307,14 @@ def send_to_kindle(
             from_email=from_email
         )
 
-        return f"Successfully sent '{title}' to {kindle_email}. The document should appear in your Kindle library shortly."
+        success_msg = f"Successfully sent '{title}' to {kindle_email}. The document should appear in your Kindle library shortly."
+        logger.info(success_msg)
+        return success_msg
 
     except Exception as e:
-        return f"Error sending to Kindle: {str(e)}"
+        error_msg = f"Error sending to Kindle: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return error_msg
 
 
 if __name__ == "__main__":
