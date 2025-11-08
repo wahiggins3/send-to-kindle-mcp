@@ -420,13 +420,20 @@ def send_to_kindle(
         kindle_email = os.getenv("KINDLE_EMAIL")
         from_email = os.getenv("FROM_EMAIL", smtp_user)
         
-        # Get author from parameter, environment variable, or default
-        if author:
+        # Get author from environment variable first, then parameter, then default
+        # This ensures the configured author name is used unless explicitly overridden
+        env_author = os.getenv("AUTHOR_NAME")
+        if env_author:
+            author_name = env_author
+            logger.info(f"Using author from AUTHOR_NAME env var: {author_name}")
+        elif author and author.lower() not in ["claude", "anthropic", "claude / anthropic"]:
+            # Only use parameter if it's not a default Claude name
             author_name = author
+            logger.info(f"Using author from parameter: {author_name}")
         else:
-            author_name = os.getenv("AUTHOR_NAME", "Claude")
-        
-        logger.info(f"Using author: {author_name}")
+            # Fallback to env var or default
+            author_name = env_author or "Claude"
+            logger.info(f"Using default author: {author_name}")
 
         logger.debug(f"Configuration loaded - Host: {smtp_host}, Port: {smtp_port_str}, User: {smtp_user}, Kindle: {kindle_email}")
 
@@ -458,8 +465,28 @@ def send_to_kindle(
         epub_data = create_epub(title, content, author_name)
         logger.info(f"EPUB created successfully ({len(epub_data)} bytes)")
 
-        # Prepare email
-        safe_filename = f"{title.replace(' ', '_')}.epub"
+        # Prepare email with Kindle-friendly filename
+        # Create a clean, short filename that displays well on Kindle
+        # Remove special characters, convert to lowercase, use hyphens
+        safe_title = title.lower()  # Start with lowercase
+        safe_title = re.sub(r'[^\w\s-]', '', safe_title)  # Remove special chars except spaces and hyphens
+        safe_title = re.sub(r'[_\s]+', '-', safe_title)  # Replace spaces and underscores with hyphens
+        safe_title = re.sub(r'-+', '-', safe_title)  # Replace multiple hyphens with single
+        safe_title = safe_title.strip('-')  # Remove leading/trailing hyphens
+        
+        # Limit filename length (Kindle displays better with shorter names)
+        # Keep it under 40 chars for better readability (leaves room for .epub)
+        if len(safe_title) > 40:
+            # Try to truncate at a word boundary (hyphen)
+            truncated = safe_title[:40]
+            last_hyphen = truncated.rfind('-')
+            if last_hyphen > 20:  # Only use hyphen break if it's not too short
+                safe_title = truncated[:last_hyphen]
+            else:
+                safe_title = truncated.rstrip('-')
+        
+        safe_filename = f"{safe_title}.epub" if safe_title else "document.epub"
+        logger.info(f"Generated filename: {safe_filename}")
         subject = f"Document: {title}"
         body = f"Attached document: {title}\nAuthor: {author_name}\n\nSent via Send to Kindle MCP Server"
 
