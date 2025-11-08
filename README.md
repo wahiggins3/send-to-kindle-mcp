@@ -37,6 +37,8 @@ pip install -e .
 
 ### 3. Configure your credentials
 
+**Option A: Create a `.env` file (for local testing)**
+
 Copy the example environment file and fill in your details:
 
 ```bash
@@ -58,6 +60,8 @@ KINDLE_EMAIL=your-kindle@kindle.com
 # Sender email (usually same as SMTP_USER)
 FROM_EMAIL=your-email@gmail.com
 ```
+
+**Note**: The `.env` file is useful for local testing (e.g., using `test_smtp.py`), but **Claude Desktop does NOT automatically load `.env` files**. You must also set these values in the Claude Desktop config file (see step 4).
 
 **Important Notes:**
 
@@ -92,7 +96,11 @@ Add the server to your Claude Desktop configuration file:
 }
 ```
 
-Replace `/path/to/send-to-kindle-mcp` with the actual path to this directory.
+**Replace the following:**
+- `/path/to/send-to-kindle-mcp` with the actual path to this directory
+- All placeholder values in the `env` section with your actual credentials
+
+**Note**: If you created a `.env` file in step 3, you can copy those same values into the `env` section above. The values must be set here for Claude Desktop to use them.
 
 ### 5. Restart Claude Desktop
 
@@ -138,10 +146,12 @@ The logs will show:
 
 ### Email not sending
 
-- Verify your SMTP credentials are correct
+- **Most common issue**: Environment variables not set in Claude Desktop config file. Remember: `.env` files are NOT automatically loaded by Claude Desktop. You must set all variables in the `claude_desktop_config.json` file.
+- Verify your SMTP credentials are correct in the Claude Desktop config file
 - For Gmail, ensure you're using an App Password, not your regular password
-- Check that less secure app access is not required (modern Gmail uses App Passwords instead)
+- Test your connection using `python test_smtp.py` to verify credentials work
 - Check the logs (see above) for specific error messages
+- Restart Claude Desktop after making config changes
 
 ### Document not appearing on Kindle
 
@@ -161,6 +171,19 @@ pip install -e .
 ```
 
 ## Development
+
+### Testing SMTP Connection
+
+Test your SMTP configuration independently of Claude Desktop:
+
+```bash
+source venv/bin/activate
+python test_smtp.py
+```
+
+This will verify your credentials and connection work correctly before using with Claude Desktop.
+
+### Running the Server Standalone
 
 To run the server standalone for testing:
 
