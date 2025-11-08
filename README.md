@@ -6,9 +6,11 @@ A Model Context Protocol (MCP) server that allows Claude Desktop to send documen
 
 - 📚 Convert text and markdown to EPUB format
 - 📧 Send documents directly to Kindle via email
+- 📖 Automatic chapter creation from markdown headings (H1, H2, etc.)
 - 🎨 Properly formatted with CSS styling for optimal reading
 - ⚡ Fast and easy integration with Claude Desktop
 - 🔒 Secure email configuration with environment variables
+- 👤 Customizable author name via environment variable
 
 ## Prerequisites
 
@@ -59,6 +61,9 @@ KINDLE_EMAIL=your-kindle@kindle.com
 
 # Sender email (usually same as SMTP_USER)
 FROM_EMAIL=your-email@gmail.com
+
+# Author name (optional - defaults to "Claude" if not set)
+AUTHOR_NAME=Your Name
 ```
 
 **Note**: The `.env` file is useful for local testing (e.g., using `test_smtp.py`), but **Claude Desktop does NOT automatically load `.env` files**. You must also set these values in the Claude Desktop config file (see step 4).
@@ -89,7 +94,8 @@ Add the server to your Claude Desktop configuration file:
         "SMTP_USER": "your-email@gmail.com",
         "SMTP_PASSWORD": "your-app-password",
         "KINDLE_EMAIL": "your-kindle@kindle.com",
-        "FROM_EMAIL": "your-email@gmail.com"
+        "FROM_EMAIL": "your-email@gmail.com",
+        "AUTHOR_NAME": "Your Name"
       }
     }
   }
@@ -117,9 +123,12 @@ Once configured, you can ask Claude to send documents to your Kindle:
 ```
 
 Claude will use the `send_to_kindle` tool to:
-1. Convert your content to a properly formatted EPUB
-2. Email it to your Kindle address
-3. Confirm successful delivery
+1. Ask you for a title and author (if not provided)
+2. Convert your content to a properly formatted EPUB with chapter navigation
+3. Email it to your Kindle address
+4. Confirm successful delivery
+
+**Chapter Navigation**: The tool automatically detects markdown headings (H1, H2, etc.) and creates separate chapters for each major section. This makes it easy to navigate longer documents on your Kindle using the table of contents.
 
 The document will appear in your Kindle library within a few minutes.
 

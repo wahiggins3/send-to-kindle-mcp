@@ -7,6 +7,7 @@ and sends them to Kindle e-readers via email.
 """
 
 import os
+import re
 import smtplib
 import sys
 import tempfile
@@ -16,7 +17,7 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from dotenv import load_dotenv
 from ebooklib import epub
@@ -38,9 +39,77 @@ load_dotenv()
 mcp = FastMCP("send-to-kindle")
 
 
+def parse_markdown_sections(content: str) -> List[Tuple[str, str, int]]:
+    """
+    Parse markdown content and split into sections based on headings.
+    
+    Returns a list of tuples: (heading_text, section_content, heading_level)
+    Sections without headings get heading_text as empty string.
+    """
+    lines = content.split('\n')
+    sections = []
+    current_section = []
+    current_heading = ""
+    current_level = 0
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i]
+        
+        # Check for ATX-style headings (# ## ### etc.)
+        atx_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+        if atx_match:
+            # Save previous section if it has content
+            if current_section or current_heading:
+                sections.append((current_heading, '\n'.join(current_section), current_level))
+            # Start new section
+            current_level = len(atx_match.group(1))
+            current_heading = atx_match.group(2).strip()
+            current_section = []
+        # Check for Setext-style headings (underlined with === or ---)
+        elif i + 1 < len(lines) and line.strip():
+            next_line = lines[i + 1].strip()
+            if re.match(r'^={3,}$', next_line):
+                # H1 style - current line is heading
+                if current_section or current_heading:
+                    sections.append((current_heading, '\n'.join(current_section), current_level))
+                current_heading = line.strip()
+                current_level = 1
+                current_section = []
+                i += 1  # Skip the underline line
+            elif re.match(r'^-{3,}$', next_line):
+                # H2 style - current line is heading
+                if current_section or current_heading:
+                    sections.append((current_heading, '\n'.join(current_section), current_level))
+                current_heading = line.strip()
+                current_level = 2
+                current_section = []
+                i += 1  # Skip the underline line
+            else:
+                current_section.append(line)
+        else:
+            if line.strip() or current_section:  # Preserve empty lines within sections
+                current_section.append(line)
+        
+        i += 1
+    
+    # Add final section
+    if current_section or current_heading:
+        sections.append((current_heading, '\n'.join(current_section), current_level))
+    
+    # If no headings found, create one section with all content
+    if not sections:
+        sections.append(("", content, 0))
+    
+    return sections
+
+
 def create_epub(title: str, content: str, author: str = "Claude") -> bytes:
     """
-    Convert text/markdown content to EPUB format.
+    Convert text/markdown content to EPUB format with proper chapter structure.
+    
+    The function automatically detects markdown headings (H1, H2, etc.) and creates
+    separate chapters for each major section, making navigation easier on Kindle.
 
     Args:
         title: The title of the document
@@ -58,18 +127,9 @@ def create_epub(title: str, content: str, author: str = "Claude") -> bytes:
     book.set_language("en")
     book.add_author(author)
 
-    # Convert markdown to HTML
-    html_content = markdown.markdown(
-        content,
-        extensions=['extra', 'codehilite', 'nl2br', 'sane_lists']
-    )
-
-    # Create chapter
-    chapter = epub.EpubHtml(
-        title=title,
-        file_name='content.xhtml',
-        lang='en'
-    )
+    # Parse content into sections based on headings
+    sections = parse_markdown_sections(content)
+    logger.info(f"Parsed content into {len(sections)} sections")
 
     # Add CSS for better formatting
     css = '''
@@ -77,27 +137,57 @@ def create_epub(title: str, content: str, author: str = "Claude") -> bytes:
             font-family: Georgia, serif;
             line-height: 1.6;
             margin: 1em;
+            padding: 1em;
         }
-        h1, h2, h3 {
+        h1 {
             font-family: Arial, sans-serif;
+            font-size: 1.8em;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            border-bottom: 2px solid #333;
+            padding-bottom: 0.3em;
+        }
+        h2 {
+            font-family: Arial, sans-serif;
+            font-size: 1.5em;
+            margin-top: 1.3em;
+            margin-bottom: 0.6em;
+            border-bottom: 1px solid #666;
+            padding-bottom: 0.2em;
+        }
+        h3 {
+            font-family: Arial, sans-serif;
+            font-size: 1.2em;
             margin-top: 1em;
             margin-bottom: 0.5em;
+        }
+        h4, h5, h6 {
+            font-family: Arial, sans-serif;
+            margin-top: 0.8em;
+            margin-bottom: 0.4em;
         }
         code {
             font-family: 'Courier New', monospace;
             background-color: #f4f4f4;
             padding: 2px 4px;
+            border-radius: 3px;
         }
         pre {
             background-color: #f4f4f4;
             padding: 1em;
             overflow-x: auto;
+            border-left: 3px solid #ccc;
+            margin: 1em 0;
         }
         blockquote {
             border-left: 3px solid #ccc;
             margin-left: 0;
             padding-left: 1em;
             color: #666;
+            font-style: italic;
+        }
+        p {
+            margin: 0.8em 0;
         }
     '''
 
@@ -109,21 +199,84 @@ def create_epub(title: str, content: str, author: str = "Claude") -> bytes:
     )
     book.add_item(style)
 
-    chapter.content = f'<html><head><link rel="stylesheet" href="style.css"/></head><body>{html_content}</body></html>'
-    chapter.add_item(style)
-
-    # Add chapter to book
-    book.add_item(chapter)
+    # Create chapters from sections
+    chapters = []
+    toc_items = []
+    chapter_num = 0
+    
+    for heading, section_content, heading_level in sections:
+        # Skip empty sections
+        if not section_content.strip() and not heading:
+            continue
+        
+        chapter_num += 1
+        
+        # Determine chapter title
+        if heading:
+            chapter_title = heading
+        elif chapter_num == 1:
+            chapter_title = title  # Use document title for first section if no heading
+        else:
+            chapter_title = f"Section {chapter_num}"
+        
+        # Convert section markdown to HTML
+        # If this section has a heading, we need to include it in the markdown
+        if heading and heading_level > 0:
+            # Reconstruct the heading in markdown format
+            heading_md = '#' * heading_level + ' ' + heading
+            full_content = heading_md + '\n\n' + section_content
+        else:
+            full_content = section_content
+        
+        html_content = markdown.markdown(
+            full_content,
+            extensions=['extra', 'codehilite', 'nl2br', 'sane_lists']
+        )
+        
+        # Create chapter file
+        file_name = f'chapter_{chapter_num:03d}.xhtml'
+        chapter = epub.EpubHtml(
+            title=chapter_title,
+            file_name=file_name,
+            lang='en'
+        )
+        
+        chapter.content = f'<html><head><link rel="stylesheet" href="style.css"/></head><body>{html_content}</body></html>'
+        chapter.add_item(style)
+        
+        book.add_item(chapter)
+        chapters.append(chapter)
+        
+        # Add to TOC - for simplicity, add all chapters as top-level items
+        # EPUB readers will handle the hierarchy based on heading levels in content
+        toc_items.append(chapter)
+    
+    # If no chapters were created, create a default one
+    if not chapters:
+        chapter = epub.EpubHtml(
+            title=title,
+            file_name='content.xhtml',
+            lang='en'
+        )
+        html_content = markdown.markdown(
+            content,
+            extensions=['extra', 'codehilite', 'nl2br', 'sane_lists']
+        )
+        chapter.content = f'<html><head><link rel="stylesheet" href="style.css"/></head><body>{html_content}</body></html>'
+        chapter.add_item(style)
+        book.add_item(chapter)
+        chapters.append(chapter)
+        toc_items = [chapter]
 
     # Define Table of Contents
-    book.toc = (chapter,)
+    book.toc = tuple(toc_items) if toc_items else tuple(chapters)
 
     # Add navigation files
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
 
-    # Define spine
-    book.spine = ['nav', chapter]
+    # Define spine (nav first, then all chapters)
+    book.spine = ['nav'] + chapters
 
     # Write to bytes
     with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as tmp_file:
@@ -136,6 +289,7 @@ def create_epub(title: str, content: str, author: str = "Claude") -> bytes:
     # Clean up temp file
     os.unlink(tmp_path)
 
+    logger.info(f"Created EPUB with {len(chapters)} chapters")
     return epub_bytes
 
 
@@ -230,19 +384,27 @@ def send_email_with_attachment(
 def send_to_kindle(
     content: str,
     title: str,
-    author: Optional[str] = "Claude"
+    author: Optional[str] = None
 ) -> str:
     """
     Convert content to EPUB and send it to your Kindle e-reader.
 
     This tool takes text or markdown content, converts it to a properly
-    formatted EPUB file, and emails it to your registered Kindle address.
-    The document will automatically appear in your Kindle library.
+    formatted EPUB file with chapter navigation, and emails it to your 
+    registered Kindle address. The document will automatically appear 
+    in your Kindle library.
+
+    IMPORTANT: Before calling this tool, you should:
+    1. Ask the user for a title for the document (if not already provided)
+    2. Ask the user for the author name (if not already provided)
+    
+    The tool automatically creates chapters from markdown headings (H1, H2, etc.),
+    making it easy to navigate longer documents on Kindle.
 
     Args:
-        content: The document content (supports markdown formatting)
-        title: The title for the document
-        author: The author name (optional, defaults to "Claude")
+        content: The document content (supports markdown formatting with headings)
+        title: The title for the document (REQUIRED - ask user if not provided)
+        author: The author name (optional - defaults to AUTHOR_NAME env var, then "Claude")
 
     Returns:
         A success message or error description
@@ -257,6 +419,14 @@ def send_to_kindle(
         smtp_password = os.getenv("SMTP_PASSWORD")
         kindle_email = os.getenv("KINDLE_EMAIL")
         from_email = os.getenv("FROM_EMAIL", smtp_user)
+        
+        # Get author from parameter, environment variable, or default
+        if author:
+            author_name = author
+        else:
+            author_name = os.getenv("AUTHOR_NAME", "Claude")
+        
+        logger.info(f"Using author: {author_name}")
 
         logger.debug(f"Configuration loaded - Host: {smtp_host}, Port: {smtp_port_str}, User: {smtp_user}, Kindle: {kindle_email}")
 
@@ -285,13 +455,13 @@ def send_to_kindle(
 
         # Create EPUB
         logger.info(f"Creating EPUB for '{title}' (content length: {len(content)} chars)")
-        epub_data = create_epub(title, content, author)
+        epub_data = create_epub(title, content, author_name)
         logger.info(f"EPUB created successfully ({len(epub_data)} bytes)")
 
         # Prepare email
         safe_filename = f"{title.replace(' ', '_')}.epub"
         subject = f"Document: {title}"
-        body = f"Attached document: {title}\nAuthor: {author}\n\nSent via Send to Kindle MCP Server"
+        body = f"Attached document: {title}\nAuthor: {author_name}\n\nSent via Send to Kindle MCP Server"
 
         # Send email
         send_email_with_attachment(
