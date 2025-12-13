@@ -8,15 +8,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
-# Copy application code
+# Copy application code first
 COPY server.py ./
 COPY .env.example ./
+
+# Install Python dependencies directly (not editable mode)
+RUN pip install --no-cache-dir \
+    "fastmcp>=0.2.0" \
+    "ebooklib>=0.18" \
+    "markdown>=3.5" \
+    "python-dotenv>=1.0.0"
 
 # Expose port (Cloud Run will use PORT env var)
 EXPOSE 8080
