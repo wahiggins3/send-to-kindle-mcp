@@ -515,4 +515,16 @@ def send_to_kindle(
 
 
 if __name__ == "__main__":
-    mcp.run()
+    # Detect transport mode: HTTP for cloud deployment, stdio for local
+    transport_mode = os.getenv("MCP_TRANSPORT", "stdio")
+
+    if transport_mode == "http":
+        # Cloud deployment mode with HTTP transport
+        host = os.getenv("MCP_HOST", "0.0.0.0")
+        port = int(os.getenv("PORT", os.getenv("MCP_PORT", "8080")))
+        logger.info(f"Starting MCP server in HTTP mode on {host}:{port}")
+        mcp.run(transport="http", host=host, port=port)
+    else:
+        # Local mode with stdio transport (for Claude Desktop)
+        logger.info("Starting MCP server in stdio mode")
+        mcp.run()

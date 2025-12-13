@@ -1,6 +1,15 @@
 # Send to Kindle MCP Server
 
-A Model Context Protocol (MCP) server that allows Claude Desktop to send documents directly to your Kindle e-reader. Convert text or markdown content into beautifully formatted EPUB files and deliver them instantly to your Kindle library.
+A Model Context Protocol (MCP) server that allows AI assistants to send documents directly to your Kindle e-reader. Convert text or markdown content into beautifully formatted EPUB files and deliver them instantly to your Kindle library.
+
+## Deployment Options
+
+This MCP server can be deployed in two ways:
+
+- **🖥️ Local Installation**: Run on your machine with Claude Desktop (stdio transport)
+- **☁️ Cloud Deployment**: Host on Google Cloud Run for access from any AI tool (HTTP transport)
+
+> **New to cloud deployment?** Check out our comprehensive [Cloud Deployment Guide](DEPLOYMENT.md) for step-by-step instructions on deploying to Google Cloud Platform.
 
 ## Features
 
@@ -14,14 +23,29 @@ A Model Context Protocol (MCP) server that allows Claude Desktop to send documen
 
 ## Prerequisites
 
+### For Local Installation
 - Python 3.10 or higher
+- Claude Desktop application
+
+### For Cloud Deployment
+- Google Cloud Platform account (or see [DEPLOYMENT.md](DEPLOYMENT.md) for other options)
+- Google Cloud SDK (gcloud CLI)
+
+### For Both
 - A Kindle e-reader or Kindle app
 - An email account with SMTP access (Gmail recommended)
 - Your Kindle email address (found in Amazon account settings)
 
 ## Installation
 
-### 1. Clone or download this repository
+Choose your installation method:
+
+- **For cloud deployment**: See the [Cloud Deployment Guide](DEPLOYMENT.md)
+- **For local installation**: Continue below
+
+### Local Installation
+
+#### 1. Clone or download this repository
 
 ```bash
 cd ~/path/to/your/projects
@@ -29,7 +53,7 @@ git clone <repository-url> send-to-kindle-mcp
 cd send-to-kindle-mcp
 ```
 
-### 2. Create a virtual environment and install dependencies
+#### 2. Create a virtual environment and install dependencies
 
 ```bash
 python -m venv venv
@@ -37,7 +61,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
-### 3. Configure your credentials
+#### 3. Configure your credentials
 
 **Option A: Create a `.env` file (for local testing)**
 
@@ -74,7 +98,7 @@ AUTHOR_NAME=Your Name
 - **Kindle Email**: Find this in your Amazon account under "Manage Your Content and Devices" → "Preferences" → "Personal Document Settings"
 - **Approved Senders**: Make sure to add your sending email address to your Kindle's approved email list in Amazon settings
 
-### 4. Configure Claude Desktop
+#### 4. Configure Claude Desktop
 
 Add the server to your Claude Desktop configuration file:
 
@@ -108,7 +132,7 @@ Add the server to your Claude Desktop configuration file:
 
 **Note**: If you created a `.env` file in step 3, you can copy those same values into the `env` section above. The values must be set here for Claude Desktop to use them.
 
-### 5. Restart Claude Desktop
+#### 5. Restart Claude Desktop
 
 Quit and restart Claude Desktop for the changes to take effect.
 

@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+venv/
+env/
+
+# Environment files (secrets should be in Cloud Secret Manager)
+.env
+
+# Testing
+.pytest_cache
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation (not needed in container)
+README.md
+LICENSE
+
+# Test files
+test_smtp.py
