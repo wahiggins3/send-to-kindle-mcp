@@ -7,7 +7,6 @@ set -e
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="${GCP_REGION:-us-central1}"
 SERVICE_NAME="send-to-kindle-mcp"
-IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,6 +32,9 @@ if [ -z "$PROJECT_ID" ]; then
         exit 1
     fi
 fi
+
+# Set the image name after PROJECT_ID is known
+IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 echo -e "${GREEN}Using GCP Project:${NC} $PROJECT_ID"
 echo -e "${GREEN}Region:${NC} $REGION"
