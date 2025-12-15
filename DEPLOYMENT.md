@@ -1,14 +1,33 @@
 # Cloud Deployment Guide
 
-This guide explains how to deploy the Send to Kindle MCP Server to Google Cloud Platform (GCP) so you can access it from any AI tool, not just Claude Desktop.
+This guide explains how to deploy the Send to Kindle MCP Server to Google Cloud Platform (GCP) so you can access it from anywhere, including the Claude.ai web interface.
 
 ## Overview
 
 When deployed to the cloud, this MCP server runs with HTTP transport instead of stdio, making it accessible to:
-- Web-based AI assistants (Claude.ai, ChatGPT, etc.)
-- Mobile AI apps
-- Any tool that supports MCP over HTTP
+- **Claude.ai web interface** (via custom connectors - Beta) ⭐ **Recommended!**
+- Claude Desktop (local application)
+- Other AI tools that support MCP over HTTP
 - Multiple clients simultaneously
+- Any device with internet access
+
+## 🚀 Quick Start (5 Minutes)
+
+Want to get started quickly? Here's the fastest path:
+
+1. **Open Google Cloud Shell**: https://console.cloud.google.com/ (click `>_` icon)
+2. **Run one command**:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/wahiggins3/send-to-kindle-mcp/claude/deploy-mcp-gcp-01D6vW3Wgj2y5zhgi7gcGpJo/cloud-shell-deploy.sh | bash
+   ```
+3. **Enter your credentials** when prompted
+4. **Copy your service URL** when deployment completes
+5. **Add to Claude.ai**: Settings → Connectors → Add custom connector
+6. **Start sending documents to your Kindle!**
+
+For detailed instructions, continue reading below.
+
+---
 
 ## Prerequisites
 
@@ -18,7 +37,7 @@ When deployed to the cloud, this MCP server runs with HTTP transport instead of 
 
 2. **Google Cloud SDK (gcloud CLI)**
    - Install from: https://cloud.google.com/sdk/docs/install
-   - Or use Google Cloud Shell (built-in)
+   - Or use Google Cloud Shell (built-in) ← **Recommended!**
 
 3. **Email Credentials**
    - SMTP server details (Gmail recommended)
@@ -109,6 +128,25 @@ https://send-to-kindle-mcp-xxxxx-uc.a.run.app
 ### Connecting from AI Tools
 
 Different AI tools have different ways to connect to MCP servers. Here are the most common:
+
+#### Claude.ai Web Interface (Beta - Recommended!)
+
+Claude.ai now supports custom MCP connectors directly in the web interface:
+
+1. **Go to Claude.ai** and sign in
+2. **Navigate to Settings** → **Connectors**
+3. **Click "Add custom connector"**
+4. **Enter details**:
+   - Name: `send-to-kindle-mcp`
+   - URL: `https://send-to-kindle-mcp-xxxxx-uc.a.run.app/mcp` (your actual URL)
+5. **Click "Configure"** and complete the setup
+6. **Start using it!** The connector will now be available in all your conversations
+
+**Benefits**:
+- ✅ No local installation required
+- ✅ Works from any device with a browser
+- ✅ Automatic updates when you redeploy
+- ✅ Accessible from anywhere
 
 #### Claude Desktop (Local)
 

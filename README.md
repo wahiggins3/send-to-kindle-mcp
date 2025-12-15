@@ -7,9 +7,12 @@ A Model Context Protocol (MCP) server that allows AI assistants to send document
 This MCP server can be deployed in two ways:
 
 - **🖥️ Local Installation**: Run on your machine with Claude Desktop (stdio transport)
-- **☁️ Cloud Deployment**: Host on Google Cloud Run for access from any AI tool (HTTP transport)
+- **☁️ Cloud Deployment**: Host on Google Cloud Run for access from anywhere (HTTP transport)
+  - ✨ **New!** Works with Claude.ai web interface via custom connectors
+  - 🌍 Accessible from any device with a browser
+  - 💰 Scales to zero when idle (minimal cost)
 
-> **New to cloud deployment?** Check out our comprehensive [Cloud Deployment Guide](DEPLOYMENT.md) for step-by-step instructions on deploying to Google Cloud Platform.
+> **Recommended:** Deploy to the cloud and connect via Claude.ai web for the best experience! See our comprehensive [Cloud Deployment Guide](DEPLOYMENT.md) for step-by-step instructions.
 
 ## Features
 
@@ -136,9 +139,21 @@ Add the server to your Claude Desktop configuration file:
 
 Quit and restart Claude Desktop for the changes to take effect.
 
+## Connecting to Claude.ai Web Interface (Beta)
+
+Claude.ai now supports connecting to remote MCP servers via custom connectors (beta feature):
+
+1. Go to **Claude.ai** → **Settings** → **Connectors**
+2. Click **"Add custom connector"**
+3. Enter your cloud server URL: `https://your-service-url.run.app/mcp`
+4. Click **"Configure"** and follow the prompts
+5. Your send-to-kindle MCP server will now be available in Claude.ai web!
+
+This allows you to use the send-to-kindle feature directly from the Claude web interface, without needing Claude Desktop.
+
 ## Usage
 
-Once configured, you can ask Claude to send documents to your Kindle:
+Once configured (either in Claude Desktop or Claude.ai web), you can ask Claude to send documents to your Kindle:
 
 ```
 "Please send this research paper to my Kindle"
